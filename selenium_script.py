@@ -8,7 +8,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.firefox.options import Options
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 # Configuration
 # -------------
@@ -24,12 +26,10 @@ import os
 # 4. Look for the "Root Directory" path of your profile
 
 PATH_TO_FIREFOX_PROFILE = os.path.expanduser(
-    "~/.mozilla/firefox/qjgl9rpb.For Automation"
+    os.getenv("FIREFOX_PROFILE_PATH", "~/.mozilla/firefox/")
 )
-PATH_TO_FIREFOX_BINARY = (
-    "/usr/bin/firefox"  # Adjust if your Firefox is installed elsewhere
-)
-PATH_TO_GECKODRIVER = "./geckodriver"  # Path to the geckodriver executable
+PATH_TO_FIREFOX_BINARY = os.getenv("FIREFOX_BINARY_PATH", "/usr/bin/firefox")
+PATH_TO_GECKODRIVER = os.getenv("GECKODRIVER_PATH", "./geckodriver")
 
 
 # Execution
@@ -41,7 +41,7 @@ def execute(pr_link, is_sync):
     options = Options()
     options.binary_location = PATH_TO_FIREFOX_BINARY
     options.profile = PATH_TO_FIREFOX_PROFILE
-    # options.add_argument("-headless")
+    options.add_argument("-headless")
 
     service = Service(PATH_TO_GECKODRIVER)
     driver = webdriver.Firefox(service=service, options=options)
