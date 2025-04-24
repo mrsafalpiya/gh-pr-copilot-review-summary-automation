@@ -52,68 +52,175 @@ def execute(pr_link, is_sync):
     # ---------------------
 
     def click_copilot_review_button(is_sync):
-        if not is_sync:  # New PR is created
-            # Find and click the Copilot Re-Request Review button using XPath
-            copilot_rerequest_review_btn_xpath = (
-                "//button[@id='re-request-review-copilot-pull-request-reviewer']"
+        # Find and click the reviewers filter icon, search for copilot and select it for review
+
+        # Find and click the reviewers filter icon
+
+        reviewers_filter_css_selector = (
+            "#reviewers-select-menu svg.octicon.octicon-gear"
+        )
+
+        try:
+            # Wait up to 15 seconds for the reviewers filter button to be present and clickable
+            wait = WebDriverWait(driver, 15)
+            reviewers_filter_icon_elem = wait.until(
+                EC.element_to_be_clickable(
+                    (By.CSS_SELECTOR, reviewers_filter_css_selector)
+                )
             )
-            try:
-                # Wait up to 15 seconds for the copilot review button to be present and clickable
-                wait = WebDriverWait(driver, 15)
-                copilot_rerequest_review_btn = wait.until(
-                    EC.element_to_be_clickable(
-                        (By.XPATH, copilot_rerequest_review_btn_xpath)
-                    )
-                )
-                copilot_rerequest_review_btn.click()
+            reviewers_filter_icon_elem.click()
 
-            except TimeoutException:
-                print(
-                    f"Error: Timeout waiting for the copilot re-request review button element to be clickable.",
-                    file=sys.stderr,
-                )
-                print(f"XPath used: {copilot_review_btn_xpath}", file=sys.stderr)
-            except NoSuchElementException:
-                print(
-                    f"Error: Could not find the copilot re-request review button element using the XPath.",
-                    file=sys.stderr,
-                )
-                print(f"XPath used: {copilot_review_btn_xpath}", file=sys.stderr)
-            except Exception as e:
-                print(
-                    f"An unexpected error occurred while trying to click the copilot re-request review button: {e}",
-                    file=sys.stderr,
-                )
-        else:
-            # Find and click the Copilot Review button using XPath
-            # This XPath translates the JS: find link, go to parent, go to previous sibling, get first child
-            copilot_review_btn_xpath = "//a[@href='/apps/copilot-pull-request-reviewer']/../preceding-sibling::*[1]/*[1]"
+        except TimeoutException:
+            print(
+                f"Error: Timeout waiting for the copilot review button element to be clickable.",
+                file=sys.stderr,
+            )
+            print(
+                f"CSS selector used: {reviewers_filter_css_selector}", file=sys.stderr
+            )
+            return
+        except NoSuchElementException:
+            print(
+                f"Error: Could not find the copilot review button element using the CSS selector.",
+                file=sys.stderr,
+            )
+            print(
+                f"CSS selector used: {reviewers_filter_css_selector}", file=sys.stderr
+            )
+            return
+        except Exception as e:
+            print(
+                f"An unexpected error occurred while trying to click the copilot review button: {e}",
+                file=sys.stderr,
+            )
+            return
 
-            try:
-                # Wait up to 15 seconds for the copilot review button to be present and clickable
-                wait = WebDriverWait(driver, 15)
-                copilot_btn_elem = wait.until(
-                    EC.element_to_be_clickable((By.XPATH, copilot_review_btn_xpath))
-                )
-                copilot_btn_elem.click()
+        # Wait till the query loading is complete
 
-            except TimeoutException:
-                print(
-                    f"Error: Timeout waiting for the copilot review button element to be clickable.",
-                    file=sys.stderr,
+        query_input_id = "review-filter-field"
+
+        try:
+            # Wait up to 15 seconds for the filter text field to be present
+            wait = WebDriverWait(driver, 15)
+            query_input_elem = wait.until(
+                EC.visibility_of_element_located((By.ID, query_input_id)),
+            )
+
+            # Parent->Parent of the query input element
+            parent_parent = query_input_elem.find_element(By.XPATH, "../..")
+
+            # Wait for the loading spinner to disappear (up to 10 seconds)
+            wait = WebDriverWait(driver, 10)
+            loading_spinner = parent_parent.find_element(
+                By.XPATH,
+                "following-sibling::*[2]",
+            ).find_element(By.CSS_SELECTOR, "svg.anim-rotate")
+            wait.until(EC.invisibility_of_element(loading_spinner))
+
+            # Navigate to the next siblings and find element with class js-username that has text "Copilot"
+            copilot_username_elem = parent_parent.find_element(
+                By.XPATH,
+                "following-sibling::*[2]//span[contains(@class, 'js-username') and text()='Copilot']",
+            )
+        except TimeoutException:
+            print(
+                f"Error: Timeout waiting for the search results loading spinner to disappear.",
+                file=sys.stderr,
+            )
+            return
+        except NoSuchElementException:
+            # Loading spinner is already disappeared
+            pass
+        except Exception as e:
+            print(
+                f"An unexpected error occurred while trying to wait for the loading spinner to disappear: {e}",
+                file=sys.stderr,
+            )
+            return
+
+        # Filter by "Copilot"
+
+        try:
+            # Write the query text "copilot"
+            query_input_elem.send_keys("copilot")
+
+        except TimeoutException:
+            print(
+                f"Error: Timeout waiting for the reviewer filter text field to be present.",
+                file=sys.stderr,
+            )
+            print(f"ID used: {query_input_id}", file=sys.stderr)
+            return
+        except NoSuchElementException:
+            print(
+                f"Error: Could not find the reviewer filter text field.",
+                file=sys.stderr,
+            )
+            print(f"ID used: {query_input_id}", file=sys.stderr)
+            return
+        except Exception as e:
+            print(
+                f"An unexpected error occurred while trying to enter query in the reviewer filter text field: {e}",
+                file=sys.stderr,
+            )
+            return
+
+        # Select copilot from the results list
+
+        try:
+            # Navigate to the next siblings and find element with class js-username that has text "Copilot"
+            copilot_username_elem = parent_parent.find_element(
+                By.XPATH,
+                "following-sibling::*[2]//span[contains(@class, 'js-username') and text()='Copilot']",
+            )
+        except NoSuchElementException:
+            print(
+                f"Copilot in the reviewers filter result not found!",
+                file=sys.stderr,
+            )
+            return
+        except Exception as e:
+            print(
+                f"An unexpected error occurred while trying to find the result of copilot: {e}",
+                file=sys.stderr,
+            )
+            return
+
+        # Check if a copilot review is currently requested
+
+        try:
+            # Navigate up to find the parent-parent-parent element containing aria-checked attribute
+            copilot_option_parent = copilot_username_elem.find_element(
+                By.XPATH, "../../.."
+            )
+
+            # Check if aria-checked attribute exists and its value
+            is_already_requested = False
+            if copilot_option_parent.get_attribute("aria-checked"):
+                is_already_requested = (
+                    copilot_option_parent.get_attribute("aria-checked").lower()
+                    == "true"
                 )
-                print(f"XPath used: {copilot_review_btn_xpath}", file=sys.stderr)
-            except NoSuchElementException:
-                print(
-                    f"Error: Could not find the copilot review button element using the XPath.",
-                    file=sys.stderr,
-                )
-                print(f"XPath used: {copilot_review_btn_xpath}", file=sys.stderr)
-            except Exception as e:
-                print(
-                    f"An unexpected error occurred while trying to click the copilot review button: {e}",
-                    file=sys.stderr,
-                )
+
+            if is_already_requested:
+                print(f"Copilot review is already requested and is pending response")
+            else:
+                # Click on the copilot option
+                copilot_username_elem.click()
+
+        except Exception as e:
+            print(
+                f"Error checking if Copilot review is already requested: {e}",
+                file=sys.stderr,
+            )
+
+        # Close the popup (Send 'q' key to the body)
+        body = driver.find_element(By.TAG_NAME, "body")
+        body.click()
+        body.send_keys("q")
+        
+        # Wait 1sec for the UI to update
+        time.sleep(1)
 
     click_copilot_review_button(is_sync)
 
